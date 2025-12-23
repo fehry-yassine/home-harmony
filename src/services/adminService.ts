@@ -117,7 +117,7 @@ export async function getAllUsers() {
 export async function getAllProperties() {
   const { data, error } = await supabase
     .from('properties')
-    .select('*, images:property_images(*), owner:profiles(name, email)')
+    .select('*, images:property_images(*), owner:profiles(name, avatar_url)')
     .order('created_at', { ascending: false });
 
   if (error) throw error;
