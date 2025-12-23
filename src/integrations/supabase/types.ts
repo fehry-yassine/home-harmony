@@ -288,21 +288,22 @@ export type Database = {
       }
     }
     Views: {
-      admin_stats: {
-        Row: {
-          published_properties: number | null
-          total_favorites: number | null
-          total_hosts: number | null
-          total_properties: number | null
-          total_renters: number | null
-          total_revenue: number | null
-          total_users: number | null
-          total_views: number | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
+      get_admin_stats: {
+        Args: never
+        Returns: {
+          published_properties: number
+          total_favorites: number
+          total_hosts: number
+          total_properties: number
+          total_renters: number
+          total_revenue: number
+          total_users: number
+          total_views: number
+        }[]
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]

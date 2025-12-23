@@ -1,26 +1,26 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { BottomNav, TabId } from '@/components/BottomNav';
 import { HomePage } from '@/pages/HomePage';
 import { SearchPage } from '@/pages/SearchPage';
 import { FavoritesPage } from '@/pages/FavoritesPage';
 import { ProfilePage } from '@/pages/ProfilePage';
 import { PropertyDetailsPage } from '@/pages/PropertyDetailsPage';
+import { useAuth } from '@/contexts/AuthContext';
+import { useFavoriteIds, useToggleFavorite } from '@/hooks/useFavorites';
 
 type Screen = 'main' | 'property-details';
 
 const Index = () => {
+  const { user, isLoading } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabId>('home');
   const [screen, setScreen] = useState<Screen>('main');
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
-  const [favorites, setFavorites] = useState<string[]>(() => {
-    const saved = localStorage.getItem('rentease-favorites');
-    return saved ? JSON.parse(saved) : [];
-  });
 
-  // Persist favorites
-  useEffect(() => {
-    localStorage.setItem('rentease-favorites', JSON.stringify(favorites));
-  }, [favorites]);
+  // Use real favorites from DB if logged in
+  const { data: favoriteIds = [] } = useFavoriteIds();
+  const toggleFavoriteMutation = useToggleFavorite();
 
   const handlePropertyClick = (id: string) => {
     setSelectedPropertyId(id);
@@ -33,9 +33,11 @@ const Index = () => {
   };
 
   const handleFavoriteToggle = (id: string) => {
-    setFavorites(prev =>
-      prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]
-    );
+    if (!user) {
+      navigate('/auth');
+      return;
+    }
+    toggleFavoriteMutation.mutate(id);
   };
 
   const handleSearchFocus = () => {
@@ -46,18 +48,13 @@ const Index = () => {
     setActiveTab('home');
   };
 
-  const handleLogout = () => {
-    // Mock logout - will integrate with Supabase later
-    console.log('Logout clicked');
-  };
-
   // Property details screen
   if (screen === 'property-details' && selectedPropertyId) {
     return (
       <PropertyDetailsPage
         propertyId={selectedPropertyId}
         onBack={handleBack}
-        isFavorite={favorites.includes(selectedPropertyId)}
+        isFavorite={favoriteIds.includes(selectedPropertyId)}
         onFavoriteToggle={handleFavoriteToggle}
       />
     );
@@ -70,7 +67,7 @@ const Index = () => {
         <HomePage
           onPropertyClick={handlePropertyClick}
           onSearchFocus={handleSearchFocus}
-          favorites={favorites}
+          favorites={favoriteIds}
           onFavoriteToggle={handleFavoriteToggle}
         />
       )}
@@ -78,20 +75,20 @@ const Index = () => {
         <SearchPage
           onPropertyClick={handlePropertyClick}
           onBack={() => setActiveTab('home')}
-          favorites={favorites}
+          favorites={favoriteIds}
           onFavoriteToggle={handleFavoriteToggle}
         />
       )}
       {activeTab === 'favorites' && (
         <FavoritesPage
-          favorites={favorites}
+          favorites={favoriteIds}
           onFavoriteToggle={handleFavoriteToggle}
           onPropertyClick={handlePropertyClick}
           onExplore={handleExplore}
         />
       )}
       {activeTab === 'profile' && (
-        <ProfilePage onLogout={handleLogout} />
+        <ProfilePage />
       )}
       
       <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
