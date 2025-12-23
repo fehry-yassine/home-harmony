@@ -1,17 +1,22 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { HostBottomNav } from '../components/HostBottomNav';
 import { HostDashboard } from './HostDashboard';
 import { HostListingsPage } from './HostListingsPage';
 import { HostProfilePage } from './HostProfilePage';
 import { AddPropertyPage } from './AddPropertyPage';
 import { HostTabId } from '../types';
+import { useAuth } from '@/contexts/AuthContext';
 
-interface HostIndexProps {
-  onSwitchToRenter: () => void;
-  onLogout: () => void;
-}
-
-export function HostIndex({ onSwitchToRenter, onLogout }: HostIndexProps) {
+export function HostIndex() {
+  const navigate = useNavigate();
+  const { signOut } = useAuth();
+  
+  const handleSwitchToRenter = () => navigate('/');
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/');
+  };
   const [activeTab, setActiveTab] = useState<HostTabId>('dashboard');
   const [showAddProperty, setShowAddProperty] = useState(false);
 
@@ -42,7 +47,7 @@ export function HostIndex({ onSwitchToRenter, onLogout }: HostIndexProps) {
         />
       )}
       {activeTab === 'profile' && (
-        <HostProfilePage onLogout={onLogout} onSwitchToRenter={onSwitchToRenter} />
+        <HostProfilePage onLogout={handleLogout} onSwitchToRenter={handleSwitchToRenter} />
       )}
 
       <HostBottomNav
