@@ -1,7 +1,7 @@
 import { ArrowLeft, Heart, Share2, MapPin, Star, Bed, Bath, Maximize } from 'lucide-react';
 import { ImageGallery } from '@/components/ImageGallery';
 import { AmenityGrid } from '@/components/AmenityGrid';
-import { getPropertyById } from '@/data/mockData';
+import { useProperty } from '@/hooks/useProperties';
 import { cn } from '@/lib/utils';
 
 interface PropertyDetailsPageProps {
@@ -12,21 +12,44 @@ interface PropertyDetailsPageProps {
 }
 
 export function PropertyDetailsPage({ propertyId, onBack, isFavorite, onFavoriteToggle }: PropertyDetailsPageProps) {
-  const property = getPropertyById(propertyId);
+  const { data: property, isLoading, error } = useProperty(propertyId);
 
-  if (!property) {
+  if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <p className="text-muted-foreground">Property not found</p>
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
       </div>
     );
   }
+
+  if (error || !property) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center bg-background">
+        <p className="text-muted-foreground">Property not found</p>
+        <button onClick={onBack} className="mt-4 text-primary underline">
+          Go back
+        </button>
+      </div>
+    );
+  }
+
+  // Prepare images
+  const images = property.images.length > 0
+    ? property.images.sort((a, b) => a.display_order - b.display_order).map(img => img.image_url)
+    : ['https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400&q=80'];
+
+  // Prepare amenities for the grid
+  const amenities = (property.amenities || []).map((name, i) => ({
+    id: String(i),
+    name,
+    icon: 'check',
+  }));
 
   return (
     <div className="animate-fade-in pb-24">
       {/* Image Gallery */}
       <div className="relative h-72">
-        <ImageGallery images={property.images} className="h-full" />
+        <ImageGallery images={images} className="h-full" />
         
         {/* Top buttons */}
         <div className="absolute left-4 right-4 top-4 flex items-center justify-between">
@@ -58,11 +81,11 @@ export function PropertyDetailsPage({ propertyId, onBack, isFavorite, onFavorite
             <h1 className="text-xl font-bold text-foreground">{property.title}</h1>
             <div className="mt-1 flex items-center gap-1 text-muted-foreground">
               <MapPin className="h-4 w-4" />
-              <span className="text-sm">{property.location}, {property.city}</span>
+              <span className="text-sm">{property.address}, {property.city}</span>
             </div>
           </div>
           <div className="text-right">
-            <p className="text-2xl font-bold text-primary">${property.price.toLocaleString()}</p>
+            <p className="text-2xl font-bold text-primary">${Number(property.price).toLocaleString()}</p>
             <p className="text-sm text-muted-foreground">per month</p>
           </div>
         </div>
@@ -71,8 +94,8 @@ export function PropertyDetailsPage({ propertyId, onBack, isFavorite, onFavorite
         <div className="mb-6 flex gap-4">
           <div className="flex items-center gap-2 rounded-xl bg-card px-4 py-3 shadow-sm">
             <Star className="h-5 w-5 fill-rating text-rating" />
-            <span className="font-semibold">{property.rating}</span>
-            <span className="text-sm text-muted-foreground">({property.reviews_count})</span>
+            <span className="font-semibold">4.5</span>
+            <span className="text-sm text-muted-foreground">(New)</span>
           </div>
           {property.bedrooms > 0 && (
             <div className="flex items-center gap-2 rounded-xl bg-card px-4 py-3 shadow-sm">
@@ -91,27 +114,33 @@ export function PropertyDetailsPage({ propertyId, onBack, isFavorite, onFavorite
         </div>
 
         {/* Description */}
-        <div className="mb-6">
-          <h2 className="mb-2 text-lg font-semibold text-foreground">Description</h2>
-          <p className="leading-relaxed text-muted-foreground">{property.description}</p>
-        </div>
+        {property.description && (
+          <div className="mb-6">
+            <h2 className="mb-2 text-lg font-semibold text-foreground">Description</h2>
+            <p className="leading-relaxed text-muted-foreground">{property.description}</p>
+          </div>
+        )}
 
         {/* Area */}
-        <div className="mb-6 flex items-center gap-3 rounded-xl bg-card p-4 shadow-sm">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-            <Maximize className="h-6 w-6 text-primary" />
+        {property.area && Number(property.area) > 0 && (
+          <div className="mb-6 flex items-center gap-3 rounded-xl bg-card p-4 shadow-sm">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+              <Maximize className="h-6 w-6 text-primary" />
+            </div>
+            <div>
+              <p className="font-semibold text-foreground">{Number(property.area).toLocaleString()} sq ft</p>
+              <p className="text-sm text-muted-foreground">Total area</p>
+            </div>
           </div>
-          <div>
-            <p className="font-semibold text-foreground">{property.area.toLocaleString()} sq ft</p>
-            <p className="text-sm text-muted-foreground">Total area</p>
-          </div>
-        </div>
+        )}
 
         {/* Amenities */}
-        <div className="mb-6">
-          <h2 className="mb-3 text-lg font-semibold text-foreground">Amenities</h2>
-          <AmenityGrid amenities={property.amenities} />
-        </div>
+        {amenities.length > 0 && (
+          <div className="mb-6">
+            <h2 className="mb-3 text-lg font-semibold text-foreground">Amenities</h2>
+            <AmenityGrid amenities={amenities} />
+          </div>
+        )}
 
         {/* Map placeholder */}
         <div className="mb-6">
