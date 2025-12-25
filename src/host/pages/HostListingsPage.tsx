@@ -1,9 +1,7 @@
-import { useState, useEffect } from 'react';
-import { Plus, Building2 } from 'lucide-react';
-import { ListingCard } from '../components/ListingCard';
-import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
-import { mockHostListings } from '../data/mockData';
-import { HostListing } from '../types';
+import { Plus, Building2, MapPin, Pencil } from 'lucide-react';
+import { useHostProperties } from '@/hooks/useProperties';
+import { PropertyWithImages } from '@/services/propertyService';
+import { cn } from '@/lib/utils';
 
 interface HostListingsPageProps {
   onAddProperty: () => void;
@@ -11,41 +9,14 @@ interface HostListingsPageProps {
 }
 
 export function HostListingsPage({ onAddProperty, onEditProperty }: HostListingsPageProps) {
-  const [listings, setListings] = useState<HostListing[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; listing: HostListing | null }>({
-    isOpen: false,
-    listing: null,
-  });
-  const [filter, setFilter] = useState<'all' | 'published' | 'draft'>('all');
+  const { data: properties = [], isLoading } = useHostProperties();
 
-  useEffect(() => {
-    // Simulate loading
-    const timer = setTimeout(() => {
-      setListings(mockHostListings);
-      setIsLoading(false);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, []);
-
-  const filteredListings = listings.filter((l) => {
-    if (filter === 'all') return true;
-    return l.status === filter;
-  });
-
-  const handleToggleStatus = (id: string) => {
-    setListings((prev) =>
-      prev.map((l) =>
-        l.id === id ? { ...l, status: l.status === 'published' ? 'draft' : 'published' } : l
-      )
-    );
-  };
-
-  const handleDeleteConfirm = () => {
-    if (deleteModal.listing) {
-      setListings((prev) => prev.filter((l) => l.id !== deleteModal.listing!.id));
-      setDeleteModal({ isOpen: false, listing: null });
-    }
+  // Helper to get cover image or first image
+  const getCoverImage = (property: PropertyWithImages): string => {
+    const cover = property.images?.find(img => img.is_cover);
+    if (cover) return cover.image_url;
+    if (property.images?.length > 0) return property.images[0].image_url;
+    return '/placeholder.svg';
   };
 
   return (
@@ -55,7 +26,7 @@ export function HostListingsPage({ onAddProperty, onEditProperty }: HostListings
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-foreground">My Listings</h1>
-            <p className="text-sm text-muted-foreground">{listings.length} properties</p>
+            <p className="text-sm text-muted-foreground">{properties.length} properties</p>
           </div>
           <button
             onClick={onAddProperty}
@@ -66,23 +37,6 @@ export function HostListingsPage({ onAddProperty, onEditProperty }: HostListings
         </div>
       </div>
 
-      {/* Filter Tabs */}
-      <div className="flex gap-2 px-4">
-        {(['all', 'published', 'draft'] as const).map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-              filter === f
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-secondary text-secondary-foreground'
-            }`}
-          >
-            {f.charAt(0).toUpperCase() + f.slice(1)}
-          </button>
-        ))}
-      </div>
-
       {/* Listings Grid */}
       {isLoading ? (
         <div className="grid gap-4 p-4 sm:grid-cols-2">
@@ -90,19 +44,62 @@ export function HostListingsPage({ onAddProperty, onEditProperty }: HostListings
             <div key={i} className="h-64 animate-pulse rounded-2xl bg-muted" />
           ))}
         </div>
-      ) : filteredListings.length > 0 ? (
+      ) : properties.length > 0 ? (
         <div className="grid gap-4 p-4 sm:grid-cols-2">
-          {filteredListings.map((listing) => (
-            <ListingCard
-              key={listing.id}
-              listing={listing}
-              onEdit={onEditProperty}
-              onToggleStatus={handleToggleStatus}
-              onDelete={(id) => {
-                const listing = listings.find((l) => l.id === id);
-                if (listing) setDeleteModal({ isOpen: true, listing });
-              }}
-            />
+          {properties.map((property) => (
+            <div
+              key={property.id}
+              className="group relative overflow-hidden rounded-2xl bg-card shadow-card transition-all hover:shadow-lg"
+            >
+              {/* Cover Image */}
+              <div className="relative aspect-[16/10] overflow-hidden">
+                <img
+                  src={getCoverImage(property)}
+                  alt={property.title}
+                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                />
+                
+                {/* Status Badge */}
+                <div className="absolute left-3 top-3">
+                  <span className={cn(
+                    "rounded-full px-3 py-1 text-xs font-semibold",
+                    property.status === 'published' 
+                      ? "bg-emerald-500/90 text-white" 
+                      : "bg-amber-500/90 text-white"
+                  )}>
+                    {property.status === 'published' ? 'Published' : 'Draft'}
+                  </span>
+                </div>
+
+                {/* Edit Button */}
+                <button
+                  onClick={() => onEditProperty(property.id)}
+                  className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm transition-colors hover:bg-black/70"
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="p-4">
+                <h3 className="font-semibold text-foreground line-clamp-1">{property.title}</h3>
+                <div className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
+                  <MapPin className="h-3.5 w-3.5" />
+                  <span className="line-clamp-1">{property.city}</span>
+                </div>
+                <div className="mt-3 flex items-center justify-between">
+                  <p className="text-lg font-bold text-primary">
+                    ${property.price.toLocaleString()}
+                    <span className="text-sm font-normal text-muted-foreground">/mo</span>
+                  </p>
+                  <div className="flex gap-2 text-xs text-muted-foreground">
+                    <span>{property.bedrooms} bed</span>
+                    <span>•</span>
+                    <span>{property.bathrooms} bath</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           ))}
         </div>
       ) : (
@@ -110,31 +107,19 @@ export function HostListingsPage({ onAddProperty, onEditProperty }: HostListings
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
             <Building2 className="h-8 w-8 text-muted-foreground" />
           </div>
-          <h3 className="mt-4 font-semibold text-foreground">No {filter} listings</h3>
+          <h3 className="mt-4 font-semibold text-foreground">No listings yet</h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            {filter === 'all'
-              ? 'Add your first property to get started.'
-              : `You don't have any ${filter} listings yet.`}
+            Add your first property to get started.
           </p>
-          {filter === 'all' && (
-            <button
-              onClick={onAddProperty}
-              className="mt-4 flex items-center gap-2 rounded-xl bg-primary px-4 py-2 font-medium text-primary-foreground"
-            >
-              <Plus className="h-4 w-4" />
-              Add Property
-            </button>
-          )}
+          <button
+            onClick={onAddProperty}
+            className="mt-4 flex items-center gap-2 rounded-xl bg-primary px-4 py-2 font-medium text-primary-foreground"
+          >
+            <Plus className="h-4 w-4" />
+            Add Property
+          </button>
         </div>
       )}
-
-      {/* Delete Confirmation Modal */}
-      <DeleteConfirmModal
-        isOpen={deleteModal.isOpen}
-        propertyTitle={deleteModal.listing?.title || ''}
-        onConfirm={handleDeleteConfirm}
-        onCancel={() => setDeleteModal({ isOpen: false, listing: null })}
-      />
     </div>
   );
 }
