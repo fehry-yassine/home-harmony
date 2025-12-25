@@ -1,8 +1,9 @@
 import { Plus, Building2, Eye, FileEdit } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { StatCard } from '../components/StatCard';
-import { mockHostListings, getHostStats, mockHostUser } from '../data/mockData';
+import { mockHostListings, getHostStats } from '../data/mockData';
 import { HostListing } from '../types';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface HostDashboardProps {
   onAddProperty: () => void;
@@ -10,11 +11,12 @@ interface HostDashboardProps {
 }
 
 export function HostDashboard({ onAddProperty, onViewListings }: HostDashboardProps) {
+  const { profile } = useAuth();
   const [listings, setListings] = useState<HostListing[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate loading
+    // Simulate loading - will be replaced with real data fetch later
     const timer = setTimeout(() => {
       setListings(mockHostListings);
       setIsLoading(false);
@@ -24,13 +26,14 @@ export function HostDashboard({ onAddProperty, onViewListings }: HostDashboardPr
 
   const stats = getHostStats(listings);
   const hasListings = listings.length > 0;
+  const userName = profile?.name || 'Host';
 
   return (
     <div className="animate-fade-in pb-24">
       {/* Header */}
       <div className="bg-gradient-to-br from-primary/10 to-primary/5 p-6 pt-8">
         <p className="text-sm text-muted-foreground">Welcome back,</p>
-        <h1 className="text-2xl font-bold text-foreground">{mockHostUser.name} 👋</h1>
+        <h1 className="text-2xl font-bold text-foreground">{userName} 👋</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Manage your rental properties
         </p>
