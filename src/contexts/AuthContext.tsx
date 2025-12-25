@@ -134,7 +134,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const switchRole = async (newRole: AppRole) => {
     if (!user) return;
 
-    // Check if user already has this role
+    // Security: Only allow switching to roles the user already has
+    // New roles can only be assigned by admins through proper channels
     const { data: existingRole } = await supabase
       .from('user_roles')
       .select('*')
@@ -143,10 +144,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .maybeSingle();
 
     if (!existingRole) {
-      // Add the new role
-      await supabase
-        .from('user_roles')
-        .insert({ user_id: user.id, role: newRole });
+      // User doesn't have this role - cannot self-assign
+      console.error('Cannot switch to a role you do not have. Contact an admin to request role changes.');
+      return;
     }
 
     setRole(newRole);
