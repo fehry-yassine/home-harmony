@@ -196,7 +196,7 @@ export async function deleteProperty(id: string): Promise<void> {
   if (error) throw error;
 }
 
-// Toggle property status
+// Toggle property status (draft <-> published)
 export async function togglePropertyStatus(id: string, currentStatus: string): Promise<void> {
   const newStatus = currentStatus === 'published' ? 'draft' : 'published';
   
@@ -206,6 +206,48 @@ export async function togglePropertyStatus(id: string, currentStatus: string): P
     .eq('id', id);
 
   if (error) throw error;
+}
+
+// Update property status directly
+export async function updatePropertyStatus(
+  id: string, 
+  status: 'draft' | 'published' | 'archived'
+): Promise<void> {
+  const { error } = await supabase
+    .from('properties')
+    .update({ status })
+    .eq('id', id);
+
+  if (error) throw error;
+}
+
+// Check if property can be published
+export interface PublishValidation {
+  canPublish: boolean;
+  missingFields: string[];
+}
+
+export async function validatePropertyForPublish(id: string): Promise<PublishValidation> {
+  const property = await getProperty(id);
+  
+  if (!property) {
+    return { canPublish: false, missingFields: ['Property not found'] };
+  }
+
+  const missingFields: string[] = [];
+
+  if (!property.title?.trim()) missingFields.push('Title');
+  if (!property.price || Number(property.price) <= 0) missingFields.push('Price');
+  if (!property.city?.trim()) missingFields.push('City');
+  if (!property.address?.trim()) missingFields.push('Address');
+  if (property.bedrooms === undefined || property.bedrooms === null) missingFields.push('Bedrooms');
+  if (property.bathrooms === undefined || property.bathrooms === null) missingFields.push('Bathrooms');
+  if (!property.images || property.images.length === 0) missingFields.push('At least 1 image');
+
+  return {
+    canPublish: missingFields.length === 0,
+    missingFields,
+  };
 }
 
 // Track property view

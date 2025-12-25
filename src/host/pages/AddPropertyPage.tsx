@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react';
 import { ArrowLeft, X, Loader2 } from 'lucide-react';
-import { StepIndicator } from '../components/StepIndicator';
 import { Step1BasicInfo } from '../components/form-steps/Step1BasicInfo';
 import { Step2Location } from '../components/form-steps/Step2Location';
 import { Step3Details } from '../components/form-steps/Step3Details';
 import { Step4Amenities } from '../components/form-steps/Step4Amenities';
+import { Step5Photos } from '../components/form-steps/Step5Photos';
 import { Step6Review } from '../components/form-steps/Step6Review';
+import { PublishValidationModal } from '../components/PublishValidationModal';
 import { PropertyFormData, initialFormData } from '../types';
 import { toast } from 'sonner';
-import { useCreateProperty, useUpdateProperty, useProperty } from '@/hooks/useProperties';
+import { useCreateProperty, useUpdateProperty, useProperty, useTogglePropertyStatus } from '@/hooks/useProperties';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface AddPropertyPageProps {
@@ -22,9 +23,11 @@ export function AddPropertyPage({ onBack, onSuccess, editingId }: AddPropertyPag
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<PropertyFormData>(initialFormData);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showPublishModal, setShowPublishModal] = useState(false);
   
   const createProperty = useCreateProperty();
   const updateProperty = useUpdateProperty();
+  const toggleStatus = useTogglePropertyStatus();
   const { data: existingProperty, isLoading: isLoadingProperty } = useProperty(editingId || null);
 
   // Load existing property data when editing
@@ -68,7 +71,7 @@ export function AddPropertyPage({ onBack, onSuccess, editingId }: AddPropertyPag
       if (!formData.bathrooms && formData.bathrooms !== 0) newErrors.bathrooms = 'Required';
     }
     // Step 4 (amenities) is optional
-    // Step 5 (photos) is removed per spec - no image uploads yet
+    // Step 5 (photos) - no hard validation, but needed for publish
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -76,7 +79,7 @@ export function AddPropertyPage({ onBack, onSuccess, editingId }: AddPropertyPag
 
   const handleNext = () => {
     if (validateStep()) {
-      setCurrentStep((prev) => Math.min(prev + 1, 5)); // 5 steps now (no photos step)
+      setCurrentStep((prev) => Math.min(prev + 1, 6));
     }
   };
 
@@ -114,12 +117,15 @@ export function AddPropertyPage({ onBack, onSuccess, editingId }: AddPropertyPag
         await updateProperty.mutateAsync({
           id: editingId,
           updates: propertyData,
+          imageUrls: formData.images,
+          coverIndex: formData.cover_image_index,
         });
         toast.success('Property updated successfully');
       } else {
         await createProperty.mutateAsync({
           property: propertyData,
-          imageUrls: [],
+          imageUrls: formData.images,
+          coverIndex: formData.cover_image_index,
         });
         toast.success('Property saved as draft');
       }
@@ -128,6 +134,53 @@ export function AddPropertyPage({ onBack, onSuccess, editingId }: AddPropertyPag
     } catch (error) {
       console.error('Error saving property:', error);
       toast.error('Failed to save property');
+    }
+  };
+
+  const handlePublish = async () => {
+    if (!user) {
+      toast.error('You must be logged in');
+      return;
+    }
+
+    try {
+      const propertyData = {
+        title: formData.title,
+        description: formData.description || null,
+        property_type: formData.property_type as 'house' | 'apartment' | 'studio' | 'office',
+        city: formData.city,
+        address: formData.address,
+        price: Number(formData.price) || 0,
+        bedrooms: Number(formData.bedrooms) || 1,
+        bathrooms: Number(formData.bathrooms) || 1,
+        area: formData.area ? Number(formData.area) : null,
+        amenities: formData.amenities,
+        status: 'published' as const,
+        owner_id: user.id,
+      };
+
+      if (editingId) {
+        await updateProperty.mutateAsync({
+          id: editingId,
+          updates: propertyData,
+          imageUrls: formData.images,
+          coverIndex: formData.cover_image_index,
+        });
+        toast.success('Property published successfully!');
+      } else {
+        await createProperty.mutateAsync({
+          property: propertyData,
+          imageUrls: formData.images,
+          coverIndex: formData.cover_image_index,
+        });
+        toast.success('Property published successfully!');
+      }
+      
+      setShowPublishModal(false);
+      onSuccess();
+    } catch (error) {
+      console.error('Error publishing property:', error);
+      toast.error('Failed to publish property');
     }
   };
 
@@ -144,9 +197,8 @@ export function AddPropertyPage({ onBack, onSuccess, editingId }: AddPropertyPag
     );
   }
 
-  // Adjusted step count (removed photos step for now)
-  const totalSteps = 5;
-  const stepLabels = ['Basic Info', 'Location', 'Details', 'Amenities', 'Review'];
+  const totalSteps = 6;
+  const stepLabels = ['Basic Info', 'Location', 'Details', 'Amenities', 'Photos', 'Review'];
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -195,7 +247,8 @@ export function AddPropertyPage({ onBack, onSuccess, editingId }: AddPropertyPag
         {currentStep === 2 && <Step2Location data={formData} onChange={updateFormData} errors={errors} />}
         {currentStep === 3 && <Step3Details data={formData} onChange={updateFormData} errors={errors} />}
         {currentStep === 4 && <Step4Amenities data={formData} onChange={updateFormData} />}
-        {currentStep === 5 && <Step6Review data={formData} />}
+        {currentStep === 5 && <Step5Photos data={formData} onChange={updateFormData} errors={errors} />}
+        {currentStep === 6 && <Step6Review data={formData} />}
       </div>
 
       {/* Navigation Buttons */}
@@ -209,25 +262,41 @@ export function AddPropertyPage({ onBack, onSuccess, editingId }: AddPropertyPag
               Continue
             </button>
           ) : (
-            <button 
-              onClick={handleSaveDraft} 
-              disabled={isSubmitting}
-              className="flex-1 rounded-xl bg-primary py-3.5 font-semibold text-primary-foreground disabled:opacity-50"
-            >
-              {isSubmitting ? (
-                <span className="flex items-center justify-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Saving...
-                </span>
-              ) : isEditing ? (
-                'Save Changes'
-              ) : (
-                'Save as Draft'
-              )}
-            </button>
+            <>
+              <button 
+                onClick={handleSaveDraft} 
+                disabled={isSubmitting}
+                className="flex-1 rounded-xl border border-border py-3.5 font-semibold text-foreground disabled:opacity-50"
+              >
+                {isSubmitting ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Saving...
+                  </span>
+                ) : (
+                  'Save as Draft'
+                )}
+              </button>
+              <button 
+                onClick={() => setShowPublishModal(true)} 
+                disabled={isSubmitting}
+                className="flex-1 rounded-xl bg-emerald-500 py-3.5 font-semibold text-white disabled:opacity-50"
+              >
+                Publish
+              </button>
+            </>
           )}
         </div>
       </div>
+
+      {/* Publish Validation Modal */}
+      <PublishValidationModal
+        isOpen={showPublishModal}
+        onClose={() => setShowPublishModal(false)}
+        onConfirm={handlePublish}
+        formData={formData}
+        isPublishing={isSubmitting}
+      />
     </div>
   );
 }

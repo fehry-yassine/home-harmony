@@ -18,15 +18,22 @@ interface HomePageProps {
 
 // Adapter to convert PropertyWithImages to Property type
 function adaptProperty(p: PropertyWithImages) {
+  // Get cover image first, then sorted by display order
+  const sortedImages = [...(p.images || [])].sort((a, b) => {
+    if (a.is_cover && !b.is_cover) return -1;
+    if (!a.is_cover && b.is_cover) return 1;
+    return a.display_order - b.display_order;
+  });
+
   return {
     id: p.id,
     title: p.title,
     price: Number(p.price),
     location: p.address,
     city: p.city,
-    images: p.images.length > 0 
-      ? p.images.sort((a, b) => a.display_order - b.display_order).map(i => i.image_url)
-      : ['https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400&q=80'],
+    images: sortedImages.length > 0 
+      ? sortedImages.map(i => i.image_url)
+      : ['/placeholder.svg'],
     rating: 4.5 + Math.random() * 0.5, // Placeholder rating
     reviews_count: Math.floor(10 + Math.random() * 90),
     amenities: (p.amenities || []).map((name, i) => ({ id: String(i), name, icon: 'check' })),

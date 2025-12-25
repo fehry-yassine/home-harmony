@@ -33,10 +33,15 @@ export function PropertyDetailsPage({ propertyId, onBack, isFavorite, onFavorite
     );
   }
 
-  // Prepare images
-  const images = property.images.length > 0
-    ? property.images.sort((a, b) => a.display_order - b.display_order).map(img => img.image_url)
-    : ['https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400&q=80'];
+  // Prepare images - cover first, then sorted by display order
+  const sortedImages = [...(property.images || [])].sort((a, b) => {
+    if (a.is_cover && !b.is_cover) return -1;
+    if (!a.is_cover && b.is_cover) return 1;
+    return a.display_order - b.display_order;
+  });
+  const images = sortedImages.length > 0
+    ? sortedImages.map(img => img.image_url)
+    : ['/placeholder.svg'];
 
   // Prepare amenities for the grid
   const amenities = (property.amenities || []).map((name, i) => ({

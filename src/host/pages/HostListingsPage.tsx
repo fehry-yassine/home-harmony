@@ -1,7 +1,10 @@
-import { Plus, Building2, MapPin, Pencil } from 'lucide-react';
-import { useHostProperties } from '@/hooks/useProperties';
-import { PropertyWithImages } from '@/services/propertyService';
-import { cn } from '@/lib/utils';
+import { useState } from 'react';
+import { Plus, Building2, MapPin, Pencil, Eye, EyeOff } from 'lucide-react';
+import { useHostProperties, useTogglePropertyStatus } from '@/hooks/useProperties';
+import { PropertyWithImages, validatePropertyForPublish } from '@/services/propertyService';
+import { PropertyStatusBadge } from '../components/PropertyStatusBadge';
+import { StatusConfirmModal } from '../components/StatusConfirmModal';
+import { toast } from 'sonner';
 
 interface HostListingsPageProps {
   onAddProperty: () => void;
@@ -10,6 +13,13 @@ interface HostListingsPageProps {
 
 export function HostListingsPage({ onAddProperty, onEditProperty }: HostListingsPageProps) {
   const { data: properties = [], isLoading } = useHostProperties();
+  const toggleStatus = useTogglePropertyStatus();
+  
+  const [statusModal, setStatusModal] = useState<{
+    isOpen: boolean;
+    action: 'publish' | 'unpublish' | 'archive';
+    property: PropertyWithImages | null;
+  }>({ isOpen: false, action: 'publish', property: null });
 
   // Helper to get cover image or first image
   const getCoverImage = (property: PropertyWithImages): string => {
@@ -17,6 +27,40 @@ export function HostListingsPage({ onAddProperty, onEditProperty }: HostListings
     if (cover) return cover.image_url;
     if (property.images?.length > 0) return property.images[0].image_url;
     return '/placeholder.svg';
+  };
+
+  const handleStatusToggle = async (property: PropertyWithImages) => {
+    if (property.status === 'published') {
+      // Unpublishing doesn't need validation
+      setStatusModal({ isOpen: true, action: 'unpublish', property });
+    } else {
+      // Publishing needs validation
+      const validation = await validatePropertyForPublish(property.id);
+      if (!validation.canPublish) {
+        toast.error(`Cannot publish: Missing ${validation.missingFields.join(', ')}`);
+        return;
+      }
+      setStatusModal({ isOpen: true, action: 'publish', property });
+    }
+  };
+
+  const handleConfirmStatusChange = async () => {
+    if (!statusModal.property) return;
+
+    try {
+      await toggleStatus.mutateAsync({
+        id: statusModal.property.id,
+        currentStatus: statusModal.property.status,
+      });
+      toast.success(
+        statusModal.action === 'publish' 
+          ? 'Property published successfully!' 
+          : 'Property unpublished'
+      );
+      setStatusModal({ isOpen: false, action: 'publish', property: null });
+    } catch (error) {
+      toast.error('Failed to update property status');
+    }
   };
 
   return (
@@ -61,23 +105,38 @@ export function HostListingsPage({ onAddProperty, onEditProperty }: HostListings
                 
                 {/* Status Badge */}
                 <div className="absolute left-3 top-3">
-                  <span className={cn(
-                    "rounded-full px-3 py-1 text-xs font-semibold",
-                    property.status === 'published' 
-                      ? "bg-emerald-500/90 text-white" 
-                      : "bg-amber-500/90 text-white"
-                  )}>
-                    {property.status === 'published' ? 'Published' : 'Draft'}
-                  </span>
+                  <PropertyStatusBadge status={property.status} />
                 </div>
 
-                {/* Edit Button */}
-                <button
-                  onClick={() => onEditProperty(property.id)}
-                  className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm transition-colors hover:bg-black/70"
-                >
-                  <Pencil className="h-4 w-4" />
-                </button>
+                {/* Action Buttons */}
+                <div className="absolute right-3 top-3 flex gap-2">
+                  {/* Toggle Status Button */}
+                  <button
+                    onClick={() => handleStatusToggle(property)}
+                    className="flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm transition-colors hover:bg-black/70"
+                    title={property.status === 'published' ? 'Unpublish' : 'Publish'}
+                  >
+                    {property.status === 'published' ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                  {/* Edit Button */}
+                  <button
+                    onClick={() => onEditProperty(property.id)}
+                    className="flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm transition-colors hover:bg-black/70"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                </div>
+
+                {/* Image count badge */}
+                {property.images && property.images.length > 0 && (
+                  <div className="absolute bottom-3 right-3 rounded-md bg-black/50 px-2 py-1 text-xs font-medium text-white backdrop-blur-sm">
+                    {property.images.length} photo{property.images.length !== 1 ? 's' : ''}
+                  </div>
+                )}
               </div>
 
               {/* Content */}
@@ -120,6 +179,16 @@ export function HostListingsPage({ onAddProperty, onEditProperty }: HostListings
           </button>
         </div>
       )}
+
+      {/* Status Confirm Modal */}
+      <StatusConfirmModal
+        isOpen={statusModal.isOpen}
+        onClose={() => setStatusModal({ isOpen: false, action: 'publish', property: null })}
+        onConfirm={handleConfirmStatusChange}
+        action={statusModal.action}
+        propertyTitle={statusModal.property?.title || ''}
+        isLoading={toggleStatus.isPending}
+      />
     </div>
   );
 }
