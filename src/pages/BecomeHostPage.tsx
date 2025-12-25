@@ -8,18 +8,18 @@ import { toast } from 'sonner';
 
 export function BecomeHostPage() {
   const navigate = useNavigate();
-  const { user, isHost } = useAuth();
+  const { user, isHost, refreshProfile } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
   // Redirect if already a host
   if (isHost) {
-    navigate('/host');
+    navigate('/host', { replace: true });
     return null;
   }
 
   // Redirect if not logged in
   if (!user) {
-    navigate('/auth');
+    navigate('/auth', { replace: true });
     return null;
   }
 
@@ -58,10 +58,9 @@ export function BecomeHostPage() {
           description: 'You can now list your properties.',
         });
         
-        // Small delay to let the role update propagate
-        setTimeout(() => {
-          window.location.href = '/host';
-        }, 500);
+        // Refresh profile to get updated role, then navigate
+        await refreshProfile();
+        navigate('/host', { replace: true });
       } else {
         throw new Error(data?.error || 'Failed to upgrade to host');
       }
