@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import { AuthPage } from "./pages/AuthPage";
+import { BecomeHostPage } from "./pages/BecomeHostPage";
 import { HostIndex } from "./host/pages/HostIndex";
 import { AdminDashboard } from "./admin/pages/AdminDashboard";
 import NotFound from "./pages/NotFound";
@@ -24,7 +25,15 @@ const App = () => (
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/" element={<Index />} />
             <Route 
-              path="/host/*" 
+              path="/become-host" 
+              element={
+                <ProtectedRoute>
+                  <BecomeHostPage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/host/*"
               element={
                 <ProtectedRoute requireHost>
                   <HostIndex />
