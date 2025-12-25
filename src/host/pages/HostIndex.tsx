@@ -17,17 +17,38 @@ export function HostIndex() {
     await signOut();
     navigate('/');
   };
+
   const [activeTab, setActiveTab] = useState<HostTabId>('dashboard');
   const [showAddProperty, setShowAddProperty] = useState(false);
+  const [editingPropertyId, setEditingPropertyId] = useState<string | undefined>(undefined);
+
+  const handleAddProperty = () => {
+    setEditingPropertyId(undefined);
+    setShowAddProperty(true);
+  };
+
+  const handleEditProperty = (id: string) => {
+    setEditingPropertyId(id);
+    setShowAddProperty(true);
+  };
+
+  const handlePropertySuccess = () => {
+    setShowAddProperty(false);
+    setEditingPropertyId(undefined);
+    setActiveTab('listings');
+  };
+
+  const handleBackFromForm = () => {
+    setShowAddProperty(false);
+    setEditingPropertyId(undefined);
+  };
 
   if (showAddProperty) {
     return (
       <AddPropertyPage
-        onBack={() => setShowAddProperty(false)}
-        onSuccess={() => {
-          setShowAddProperty(false);
-          setActiveTab('listings');
-        }}
+        onBack={handleBackFromForm}
+        onSuccess={handlePropertySuccess}
+        editingId={editingPropertyId}
       />
     );
   }
@@ -36,14 +57,14 @@ export function HostIndex() {
     <div className="min-h-screen bg-background">
       {activeTab === 'dashboard' && (
         <HostDashboard
-          onAddProperty={() => setShowAddProperty(true)}
+          onAddProperty={handleAddProperty}
           onViewListings={() => setActiveTab('listings')}
         />
       )}
       {activeTab === 'listings' && (
         <HostListingsPage
-          onAddProperty={() => setShowAddProperty(true)}
-          onEditProperty={(id) => console.log('Edit:', id)}
+          onAddProperty={handleAddProperty}
+          onEditProperty={handleEditProperty}
         />
       )}
       {activeTab === 'profile' && (
@@ -54,7 +75,7 @@ export function HostIndex() {
         activeTab={activeTab}
         onTabChange={(tab) => {
           if (tab === 'add-property') {
-            setShowAddProperty(true);
+            handleAddProperty();
           } else {
             setActiveTab(tab);
           }

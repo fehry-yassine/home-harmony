@@ -1,9 +1,8 @@
 import { Plus, Building2, Eye, FileEdit } from 'lucide-react';
-import { useState, useEffect } from 'react';
 import { StatCard } from '../components/StatCard';
-import { mockHostListings, getHostStats } from '../data/mockData';
-import { HostListing } from '../types';
 import { useAuth } from '@/contexts/AuthContext';
+import { useHostProperties } from '@/hooks/useProperties';
+import { PropertyWithImages } from '@/services/propertyService';
 
 interface HostDashboardProps {
   onAddProperty: () => void;
@@ -12,21 +11,27 @@ interface HostDashboardProps {
 
 export function HostDashboard({ onAddProperty, onViewListings }: HostDashboardProps) {
   const { profile } = useAuth();
-  const [listings, setListings] = useState<HostListing[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: properties = [], isLoading } = useHostProperties();
 
-  useEffect(() => {
-    // Simulate loading - will be replaced with real data fetch later
-    const timer = setTimeout(() => {
-      setListings(mockHostListings);
-      setIsLoading(false);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, []);
-
-  const stats = getHostStats(listings);
-  const hasListings = listings.length > 0;
   const userName = profile?.name || 'Host';
+  
+  // Calculate stats from real data
+  const stats = {
+    total: properties.length,
+    published: properties.filter((p: PropertyWithImages) => p.status === 'published').length,
+    drafts: properties.filter((p: PropertyWithImages) => p.status === 'draft').length,
+  };
+
+  const hasListings = properties.length > 0;
+  const recentListings = properties.slice(0, 2);
+
+  // Helper to get cover image or first image
+  const getCoverImage = (property: PropertyWithImages): string => {
+    const cover = property.images?.find(img => img.is_cover);
+    if (cover) return cover.image_url;
+    if (property.images?.length > 0) return property.images[0].image_url;
+    return '/placeholder.svg';
+  };
 
   return (
     <div className="animate-fade-in pb-24">
@@ -50,19 +55,19 @@ export function HostDashboard({ onAddProperty, onViewListings }: HostDashboardPr
         <div className="grid grid-cols-3 gap-3 p-4">
           <StatCard
             title="Total"
-            value={stats.total_listings}
+            value={stats.total}
             icon={<Building2 className="h-5 w-5" />}
             variant="primary"
           />
           <StatCard
             title="Published"
-            value={stats.published_listings}
+            value={stats.published}
             icon={<Eye className="h-5 w-5" />}
             variant="success"
           />
           <StatCard
             title="Drafts"
-            value={stats.draft_listings}
+            value={stats.drafts}
             icon={<FileEdit className="h-5 w-5" />}
             variant="warning"
           />
@@ -99,28 +104,28 @@ export function HostDashboard({ onAddProperty, onViewListings }: HostDashboardPr
 
           {/* Recent listings preview */}
           <div className="mt-4 space-y-3">
-            {listings.slice(0, 2).map((listing) => (
+            {recentListings.map((property) => (
               <div
-                key={listing.id}
+                key={property.id}
                 className="flex items-center gap-4 rounded-2xl bg-card p-3 shadow-card"
               >
                 <img
-                  src={listing.images[0]}
-                  alt={listing.title}
+                  src={getCoverImage(property)}
+                  alt={property.title}
                   className="h-16 w-16 rounded-xl object-cover"
                 />
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-medium text-foreground truncate">{listing.title}</h3>
-                  <p className="text-sm text-muted-foreground">${listing.price.toLocaleString()}/mo</p>
+                  <h3 className="font-medium text-foreground truncate">{property.title}</h3>
+                  <p className="text-sm text-muted-foreground">${property.price.toLocaleString()}/mo</p>
                 </div>
                 <span
                   className={`rounded-full px-2 py-1 text-xs font-medium ${
-                    listing.status === 'published'
+                    property.status === 'published'
                       ? 'bg-emerald-500/10 text-emerald-600'
                       : 'bg-amber-500/10 text-amber-600'
                   }`}
                 >
-                  {listing.status === 'published' ? 'Live' : 'Draft'}
+                  {property.status === 'published' ? 'Live' : 'Draft'}
                 </span>
               </div>
             ))}
