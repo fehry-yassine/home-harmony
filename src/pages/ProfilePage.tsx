@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useFavorites } from '@/hooks/useFavorites';
 
 export function ProfilePage() {
-  const { user, profile, role, isHost, isAdmin, signOut, switchRole } = useAuth();
+  const { user, profile, role, isHost, isAdmin, signOut } = useAuth();
   const { data: favorites } = useFavorites();
   const navigate = useNavigate();
 
@@ -13,9 +13,8 @@ export function ProfilePage() {
     navigate('/auth');
   };
 
-  const handleBecomeHost = async () => {
-    await switchRole('host');
-    navigate('/host');
+  const handleBecomeHost = () => {
+    navigate('/become-host');
   };
 
   const handleGoToHost = () => {
