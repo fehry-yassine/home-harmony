@@ -47,7 +47,8 @@ export function Step5Photos({ data, onChange, errors }: Step5PhotosProps) {
     
     for (let i = 0; i < validFiles.length; i++) {
       try {
-        const url = await uploadPropertyImage(user.id, validFiles[i]);
+        // userId is now securely obtained from auth session inside uploadPropertyImage
+        const url = await uploadPropertyImage(validFiles[i]);
         uploadedUrls.push(url);
         setUploadProgress(((i + 1) / validFiles.length) * 100);
       } catch (error) {
