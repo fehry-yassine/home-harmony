@@ -1,15 +1,18 @@
 import { Plus, Building2, Eye, FileEdit } from 'lucide-react';
 import { StatCard } from '../components/StatCard';
+import { NeedsAttentionCard } from '../components/NeedsAttentionCard';
 import { useAuth } from '@/contexts/AuthContext';
 import { useHostProperties } from '@/hooks/useProperties';
 import { PropertyWithImages } from '@/services/propertyService';
+import { calculatePropertyCompleteness } from '../utils/completenessScore';
 
 interface HostDashboardProps {
   onAddProperty: () => void;
   onViewListings: () => void;
+  onEditProperty: (id: string) => void;
 }
 
-export function HostDashboard({ onAddProperty, onViewListings }: HostDashboardProps) {
+export function HostDashboard({ onAddProperty, onViewListings, onEditProperty }: HostDashboardProps) {
   const { profile } = useAuth();
   const { data: properties = [], isLoading } = useHostProperties();
 
@@ -21,6 +24,12 @@ export function HostDashboard({ onAddProperty, onViewListings }: HostDashboardPr
     published: properties.filter((p: PropertyWithImages) => p.status === 'published').length,
     drafts: properties.filter((p: PropertyWithImages) => p.status === 'draft').length,
   };
+
+  // Count properties missing requirements
+  const incompleteCount = properties.filter((p: PropertyWithImages) => {
+    const completeness = calculatePropertyCompleteness(p);
+    return completeness.percentage < 80;
+  }).length;
 
   const hasListings = properties.length > 0;
   const recentListings = properties.slice(0, 2);
@@ -85,6 +94,14 @@ export function HostDashboard({ onAddProperty, onViewListings }: HostDashboardPr
         </button>
       </div>
 
+      {/* Needs Attention Section */}
+      {!isLoading && hasListings && incompleteCount > 0 && (
+        <NeedsAttentionCard 
+          properties={properties} 
+          onEditProperty={onEditProperty}
+        />
+      )}
+
       {/* Content */}
       {isLoading ? (
         <div className="p-4">
@@ -104,31 +121,47 @@ export function HostDashboard({ onAddProperty, onViewListings }: HostDashboardPr
 
           {/* Recent listings preview */}
           <div className="mt-4 space-y-3">
-            {recentListings.map((property) => (
-              <div
-                key={property.id}
-                className="flex items-center gap-4 rounded-2xl bg-card p-3 shadow-card"
-              >
-                <img
-                  src={getCoverImage(property)}
-                  alt={property.title}
-                  className="h-16 w-16 rounded-xl object-cover"
-                />
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-medium text-foreground truncate">{property.title}</h3>
-                  <p className="text-sm text-muted-foreground">${property.price.toLocaleString()}/mo</p>
-                </div>
-                <span
-                  className={`rounded-full px-2 py-1 text-xs font-medium ${
-                    property.status === 'published'
-                      ? 'bg-emerald-500/10 text-emerald-600'
-                      : 'bg-amber-500/10 text-amber-600'
-                  }`}
+            {recentListings.map((property) => {
+              const completeness = calculatePropertyCompleteness(property);
+              return (
+                <div
+                  key={property.id}
+                  className="flex items-center gap-4 rounded-2xl bg-card p-3 shadow-card"
                 >
-                  {property.status === 'published' ? 'Live' : 'Draft'}
-                </span>
-              </div>
-            ))}
+                  <img
+                    src={getCoverImage(property)}
+                    alt={property.title}
+                    className="h-16 w-16 rounded-xl object-cover"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-medium text-foreground truncate">{property.title}</h3>
+                    <p className="text-sm text-muted-foreground">${property.price.toLocaleString()}/mo</p>
+                    {/* Completeness mini bar */}
+                    <div className="mt-1 flex items-center gap-2">
+                      <div className="h-1 w-16 rounded-full bg-muted overflow-hidden">
+                        <div 
+                          className={`h-full ${
+                            completeness.percentage >= 80 ? 'bg-emerald-500' :
+                            completeness.percentage >= 50 ? 'bg-amber-500' : 'bg-red-500'
+                          }`}
+                          style={{ width: `${completeness.percentage}%` }}
+                        />
+                      </div>
+                      <span className="text-xs text-muted-foreground">{completeness.percentage}%</span>
+                    </div>
+                  </div>
+                  <span
+                    className={`rounded-full px-2 py-1 text-xs font-medium ${
+                      property.status === 'published'
+                        ? 'bg-emerald-500/10 text-emerald-600'
+                        : 'bg-amber-500/10 text-amber-600'
+                    }`}
+                  >
+                    {property.status === 'published' ? 'Live' : 'Draft'}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
       ) : (
