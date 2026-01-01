@@ -58,13 +58,13 @@ export async function getHostStats(hostId: string): Promise<HostStats> {
   };
 }
 
-// Upload property image
-export async function uploadPropertyImage(
-  userId: string,
-  file: File
-): Promise<string> {
+// Upload property image - securely gets userId from auth session
+export async function uploadPropertyImage(file: File): Promise<string> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
   const fileExt = file.name.split('.').pop();
-  const fileName = `${userId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+  const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
 
   const { error } = await supabase.storage
     .from('property-images')
@@ -79,10 +79,13 @@ export async function uploadPropertyImage(
   return urlData.publicUrl;
 }
 
-// Upload avatar
-export async function uploadAvatar(userId: string, file: File): Promise<string> {
+// Upload avatar - securely gets userId from auth session
+export async function uploadAvatar(file: File): Promise<string> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
   const fileExt = file.name.split('.').pop();
-  const fileName = `${userId}/avatar.${fileExt}`;
+  const fileName = `${user.id}/avatar.${fileExt}`;
 
   const { error } = await supabase.storage
     .from('avatars')
