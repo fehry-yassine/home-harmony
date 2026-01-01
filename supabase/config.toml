@@ -1,1 +1,4 @@
 project_id = "zqtxnpsttetntteavbvq"
+
+[functions.become-host]
+verify_jwt = false
