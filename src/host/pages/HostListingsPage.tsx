@@ -1,17 +1,20 @@
 import { useState } from 'react';
-import { Plus, Building2, MapPin, Pencil, Eye, EyeOff } from 'lucide-react';
+import { Plus, Building2, MapPin, Pencil, Eye, EyeOff, ExternalLink } from 'lucide-react';
 import { useHostProperties, useTogglePropertyStatus } from '@/hooks/useProperties';
 import { PropertyWithImages, validatePropertyForPublish } from '@/services/propertyService';
 import { PropertyStatusBadge } from '../components/PropertyStatusBadge';
 import { StatusConfirmModal } from '../components/StatusConfirmModal';
+import { CompletenessIndicator } from '../components/CompletenessIndicator';
+import { calculatePropertyCompleteness } from '../utils/completenessScore';
 import { toast } from 'sonner';
 
 interface HostListingsPageProps {
   onAddProperty: () => void;
   onEditProperty: (id: string) => void;
+  onPreviewProperty: (id: string) => void;
 }
 
-export function HostListingsPage({ onAddProperty, onEditProperty }: HostListingsPageProps) {
+export function HostListingsPage({ onAddProperty, onEditProperty, onPreviewProperty }: HostListingsPageProps) {
   const { data: properties = [], isLoading } = useHostProperties();
   const toggleStatus = useTogglePropertyStatus();
   
@@ -90,76 +93,94 @@ export function HostListingsPage({ onAddProperty, onEditProperty }: HostListings
         </div>
       ) : properties.length > 0 ? (
         <div className="grid gap-4 p-4 sm:grid-cols-2">
-          {properties.map((property) => (
-            <div
-              key={property.id}
-              className="group relative overflow-hidden rounded-2xl bg-card shadow-card transition-all hover:shadow-lg"
-            >
-              {/* Cover Image */}
-              <div className="relative aspect-[16/10] overflow-hidden">
-                <img
-                  src={getCoverImage(property)}
-                  alt={property.title}
-                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                />
-                
-                {/* Status Badge */}
-                <div className="absolute left-3 top-3">
-                  <PropertyStatusBadge status={property.status} />
-                </div>
-
-                {/* Action Buttons */}
-                <div className="absolute right-3 top-3 flex gap-2">
-                  {/* Toggle Status Button */}
-                  <button
-                    onClick={() => handleStatusToggle(property)}
-                    className="flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm transition-colors hover:bg-black/70"
-                    title={property.status === 'published' ? 'Unpublish' : 'Publish'}
-                  >
-                    {property.status === 'published' ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </button>
-                  {/* Edit Button */}
-                  <button
-                    onClick={() => onEditProperty(property.id)}
-                    className="flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm transition-colors hover:bg-black/70"
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </button>
-                </div>
-
-                {/* Image count badge */}
-                {property.images && property.images.length > 0 && (
-                  <div className="absolute bottom-3 right-3 rounded-md bg-black/50 px-2 py-1 text-xs font-medium text-white backdrop-blur-sm">
-                    {property.images.length} photo{property.images.length !== 1 ? 's' : ''}
+          {properties.map((property) => {
+            const completeness = calculatePropertyCompleteness(property);
+            
+            return (
+              <div
+                key={property.id}
+                className="group relative overflow-hidden rounded-2xl bg-card shadow-card transition-all hover:shadow-lg"
+              >
+                {/* Cover Image */}
+                <div className="relative aspect-[16/10] overflow-hidden">
+                  <img
+                    src={getCoverImage(property)}
+                    alt={property.title}
+                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  />
+                  
+                  {/* Status Badge */}
+                  <div className="absolute left-3 top-3">
+                    <PropertyStatusBadge status={property.status} />
                   </div>
-                )}
-              </div>
 
-              {/* Content */}
-              <div className="p-4">
-                <h3 className="font-semibold text-foreground line-clamp-1">{property.title}</h3>
-                <div className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
-                  <MapPin className="h-3.5 w-3.5" />
-                  <span className="line-clamp-1">{property.city}</span>
+                  {/* Action Buttons */}
+                  <div className="absolute right-3 top-3 flex gap-2">
+                    {/* Preview Button */}
+                    <button
+                      onClick={() => onPreviewProperty(property.id)}
+                      className="flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm transition-colors hover:bg-black/70"
+                      title="Preview as Renter"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </button>
+                    {/* Toggle Status Button */}
+                    <button
+                      onClick={() => handleStatusToggle(property)}
+                      className="flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm transition-colors hover:bg-black/70"
+                      title={property.status === 'published' ? 'Unpublish' : 'Publish'}
+                    >
+                      {property.status === 'published' ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                    {/* Edit Button */}
+                    <button
+                      onClick={() => onEditProperty(property.id)}
+                      className="flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm transition-colors hover:bg-black/70"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  {/* Image count badge */}
+                  {property.images && property.images.length > 0 && (
+                    <div className="absolute bottom-3 right-3 rounded-md bg-black/50 px-2 py-1 text-xs font-medium text-white backdrop-blur-sm">
+                      {property.images.length} photo{property.images.length !== 1 ? 's' : ''}
+                    </div>
+                  )}
                 </div>
-                <div className="mt-3 flex items-center justify-between">
-                  <p className="text-lg font-bold text-primary">
-                    ${property.price.toLocaleString()}
-                    <span className="text-sm font-normal text-muted-foreground">/mo</span>
-                  </p>
-                  <div className="flex gap-2 text-xs text-muted-foreground">
-                    <span>{property.bedrooms} bed</span>
-                    <span>•</span>
-                    <span>{property.bathrooms} bath</span>
+
+                {/* Content */}
+                <div className="p-4">
+                  <h3 className="font-semibold text-foreground line-clamp-1">{property.title}</h3>
+                  <div className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
+                    <MapPin className="h-3.5 w-3.5" />
+                    <span className="line-clamp-1">{property.city}</span>
+                  </div>
+                  
+                  {/* Completeness Indicator */}
+                  <div className="mt-2">
+                    <CompletenessIndicator result={completeness} variant="compact" />
+                  </div>
+                  
+                  <div className="mt-3 flex items-center justify-between">
+                    <p className="text-lg font-bold text-primary">
+                      ${property.price.toLocaleString()}
+                      <span className="text-sm font-normal text-muted-foreground">/mo</span>
+                    </p>
+                    <div className="flex gap-2 text-xs text-muted-foreground">
+                      <span>{property.bedrooms} bed</span>
+                      <span>•</span>
+                      <span>{property.bathrooms} bath</span>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center p-12 text-center">

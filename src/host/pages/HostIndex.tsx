@@ -5,6 +5,7 @@ import { HostDashboard } from './HostDashboard';
 import { HostListingsPage } from './HostListingsPage';
 import { HostProfilePage } from './HostProfilePage';
 import { AddPropertyPage } from './AddPropertyPage';
+import { PropertyPreviewPage } from './PropertyPreviewPage';
 import { HostTabId } from '../types';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -21,6 +22,7 @@ export function HostIndex() {
   const [activeTab, setActiveTab] = useState<HostTabId>('dashboard');
   const [showAddProperty, setShowAddProperty] = useState(false);
   const [editingPropertyId, setEditingPropertyId] = useState<string | undefined>(undefined);
+  const [previewPropertyId, setPreviewPropertyId] = useState<string | undefined>(undefined);
 
   const handleAddProperty = () => {
     setEditingPropertyId(undefined);
@@ -30,6 +32,10 @@ export function HostIndex() {
   const handleEditProperty = (id: string) => {
     setEditingPropertyId(id);
     setShowAddProperty(true);
+  };
+
+  const handlePreviewProperty = (id: string) => {
+    setPreviewPropertyId(id);
   };
 
   const handlePropertySuccess = () => {
@@ -42,6 +48,20 @@ export function HostIndex() {
     setShowAddProperty(false);
     setEditingPropertyId(undefined);
   };
+
+  const handleBackFromPreview = () => {
+    setPreviewPropertyId(undefined);
+  };
+
+  // Show preview page
+  if (previewPropertyId) {
+    return (
+      <PropertyPreviewPage
+        propertyId={previewPropertyId}
+        onBack={handleBackFromPreview}
+      />
+    );
+  }
 
   if (showAddProperty) {
     return (
@@ -59,12 +79,14 @@ export function HostIndex() {
         <HostDashboard
           onAddProperty={handleAddProperty}
           onViewListings={() => setActiveTab('listings')}
+          onEditProperty={handleEditProperty}
         />
       )}
       {activeTab === 'listings' && (
         <HostListingsPage
           onAddProperty={handleAddProperty}
           onEditProperty={handleEditProperty}
+          onPreviewProperty={handlePreviewProperty}
         />
       )}
       {activeTab === 'profile' && (

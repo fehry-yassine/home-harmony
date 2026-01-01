@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { ArrowLeft, X, Loader2 } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { ArrowLeft, X, Loader2, Eye } from 'lucide-react';
 import { Step1BasicInfo } from '../components/form-steps/Step1BasicInfo';
 import { Step2Location } from '../components/form-steps/Step2Location';
 import { Step3Details } from '../components/form-steps/Step3Details';
@@ -7,7 +7,10 @@ import { Step4Amenities } from '../components/form-steps/Step4Amenities';
 import { Step5Photos } from '../components/form-steps/Step5Photos';
 import { Step6Review } from '../components/form-steps/Step6Review';
 import { PublishValidationModal } from '../components/PublishValidationModal';
+import { CompletenessIndicator } from '../components/CompletenessIndicator';
+import { QualityWarnings } from '../components/QualityWarnings';
 import { PropertyFormData, initialFormData } from '../types';
+import { calculateCompleteness } from '../utils/completenessScore';
 import { toast } from 'sonner';
 import { useCreateProperty, useUpdateProperty, useProperty, useTogglePropertyStatus } from '@/hooks/useProperties';
 import { useAuth } from '@/contexts/AuthContext';
@@ -29,6 +32,9 @@ export function AddPropertyPage({ onBack, onSuccess, editingId }: AddPropertyPag
   const updateProperty = useUpdateProperty();
   const toggleStatus = useTogglePropertyStatus();
   const { data: existingProperty, isLoading: isLoadingProperty } = useProperty(editingId || null);
+
+  // Calculate completeness
+  const completeness = useMemo(() => calculateCompleteness(formData), [formData]);
 
   // Load existing property data when editing
   useEffect(() => {
@@ -213,6 +219,14 @@ export function AddPropertyPage({ onBack, onSuccess, editingId }: AddPropertyPag
         </button>
       </div>
 
+      {/* Completeness Score (show on all steps) */}
+      <div className="border-b border-border bg-card/50 px-4 py-3">
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-muted-foreground">Listing Completeness</span>
+          <CompletenessIndicator result={completeness} variant="compact" />
+        </div>
+      </div>
+
       {/* Step Indicator */}
       <div className="px-4 py-3">
         <div className="flex items-center justify-between">
@@ -248,7 +262,22 @@ export function AddPropertyPage({ onBack, onSuccess, editingId }: AddPropertyPag
         {currentStep === 3 && <Step3Details data={formData} onChange={updateFormData} errors={errors} />}
         {currentStep === 4 && <Step4Amenities data={formData} onChange={updateFormData} />}
         {currentStep === 5 && <Step5Photos data={formData} onChange={updateFormData} errors={errors} />}
-        {currentStep === 6 && <Step6Review data={formData} />}
+        {currentStep === 6 && (
+          <>
+            <Step6Review data={formData} />
+            {/* Quality Warnings on Review Step */}
+            {completeness.warnings.length > 0 && (
+              <div className="px-4 pb-4">
+                <h3 className="text-sm font-medium text-muted-foreground mb-2">Suggestions</h3>
+                <QualityWarnings warnings={completeness.warnings} />
+              </div>
+            )}
+            {/* Detailed Completeness on Review Step */}
+            <div className="px-4 pb-4">
+              <CompletenessIndicator result={completeness} variant="detailed" />
+            </div>
+          </>
+        )}
       </div>
 
       {/* Navigation Buttons */}
